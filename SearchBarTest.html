@@ -105,12 +105,7 @@
             const form = document.getElementById('searchForm');
 
             // Example dataset. Replace or fetch from your API.
-            const DATA = [
-                "Project Apollo", "Project Atlas", "Personal Website", "Docs: API Reference",
-                "Design System", "User Onboarding", "SearchBar Component", "Accessibility Guidelines",
-                "Release Notes", "Team Roster", "Marketing Plan", "Budget Report", "Customer Feedback"
-            ];
-
+            // Remove unused DATA array since we're searching media files
             let filtered = [];
             let index = -1;
 
@@ -135,6 +130,16 @@
                     });
                     frag.appendChild(li);
                 });
+                listEl.appendChild(frag);
+                suggestionsEl.hidden = false;
+                input.setAttribute('aria-expanded', 'true');
+            }
+
+            function collectMedia() {
+                return [...document.querySelectorAll('img, video')].map(el => {
+                    let src = el.src || el.currentSrc;
+                    try {
+                        src = new URL(src, location.href).href;
                     } catch (err) {
                         src = src;
                     }
@@ -153,8 +158,6 @@
             }
 
             let MEDIA = collectMedia();
-            let filtered = [];
-            let index = -1;
 
             function renderSuggestions(items) {
                 listEl.innerHTML = '';
