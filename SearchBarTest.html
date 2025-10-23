@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SearchBarTest</title>
+    <style>
+        :root {
+            --bg: #f6f8fa;
+            --card: #fff;
+            --accent: #0b5fff;
+            --muted: #6b7280;
+            --radius: 10px;
+            --shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+        }
+        html,body { height:100%; margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; background:var(--bg); color:#0f172a; display:flex; align-items:center; justify-content:center; }
+        .search-card {
+            background:var(--card); padding:20px; border-radius:var(--radius); box-shadow:var(--shadow); width:min(720px,96%); max-width:720px;
+        }
+
+        form.search {
+            display:flex; gap:10px; align-items:center;
+        }
+        .search-field {
+            position:relative; flex:1;
+        }
+
+        label.visually-hidden { position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden; }
+
+        .input-wrap {
+            display:flex; align-items:center; background:#f3f4f6; padding:8px 10px; border-radius:8px; gap:8px;
+            border:1px solid transparent;
+            transition: box-shadow .12s, border-color .12s, background .12s;
+        }
+        input[type="search"] {
+            border:0; outline:0; background:transparent; font-size:16px; flex:1; min-width:0;
+        }
+        .input-wrap:focus-within { box-shadow:0 0 0 4px rgba(11,95,255,0.08); border-color: rgba(11,95,255,0.18); background:#fff; }
+
+        button.icon-btn {
+            border:0; background:transparent; padding:6px; cursor:pointer; color:var(--muted);
+            display:inline-flex; align-items:center; justify-content:center; border-radius:6px;
+        }
+        button.icon-btn:hover { background:rgba(15,23,42,0.04); color:var(--accent); }
+
+        .clear-btn { visibility:hidden; }
+        .clear-btn.show { visibility:visible; }
+
+        .submit-btn {
+            background:var(--accent); color:#fff; border:0; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600;
+        }
+        .submit-btn:active { transform:translateY(1px); }
+        .suggestions {
+            margin-top:8px; background:#fff; border-radius:8px; box-shadow:var(--shadow); overflow:hidden; max-height:220px; border:1px solid rgba(15,23,42,0.06);
+        }
+        .suggestions ul { list-style:none; margin:0; padding:0; }
+        .suggestions li {
+            padding:10px 12px; display:flex; gap:10px; align-items:center; cursor:pointer;
+        }
+        .suggestions li:hover, .suggestions li[aria-selected="true"] {
+            background:linear-gradient(90deg, rgba(11,95,255,0.04), rgba(11,95,255,0.02));
+        }
+        .muted { color:var(--muted); font-size:13px; }
+        .hint { font-size:13px; color:var(--muted); margin-top:8px; }
+        @media (max-width:420px){ .submit-btn { padding:10px; } }
+    </style>
+</head>
+<body>
+    <main class="search-card" aria-labelledby="title">
+        <h1 id="title" style="margin:0 0 12px;font-size:18px">Search</h1>
+
+        <form class="search" role="search" id="searchForm" autocomplete="off">
+            <div class="search-field">
+                <label for="searchInput" class="visually-hidden">Search</label>
+                <div class="input-wrap" aria-hidden="false">
+                    <!-- search icon -->
+                    <button type="button" class="icon-btn" aria-hidden="true" tabindex="-1" title="Search icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+
+                    <input id="searchInput" type="search" name="q" placeholder="Search people, projects, docs..." aria-autocomplete="list" aria-controls="suggestList" aria-expanded="false" />
+                    <button type="button" id="clearBtn" class="icon-btn clear-btn" title="Clear search" aria-label="Clear search">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                </div>
+
+                <div id="suggestions" class="suggestions" hidden>
+                    <ul id="suggestList" role="listbox" tabindex="-1"></ul>
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn" id="searchBtn">Search</button>
+        </form>
+
+        <p class="hint">Tip: use arrow keys to navigate suggestions, Enter to select, Esc to close.</p>
+    </main>
+
+    <script>
+        // Simple client-side search bar with suggestions & keyboard navigation.
+        (function(){
+            const input = document.getElementById('searchInput');
+            const clearBtn = document.getElementById('clearBtn');
+            const suggestionsEl = document.getElementById('suggestions');
+            const listEl = document.getElementById('suggestList');
+            const form = document.getElementById('searchForm');
+
+            // Example dataset. Replace or fetch from your API.
+            const DATA = [
+                "Project Apollo", "Project Atlas", "Personal Website", "Docs: API Reference",
+                "Design System", "User Onboarding", "SearchBar Component", "Accessibility Guidelines",
+                "Release Notes", "Team Roster", "Marketing Plan", "Budget Report", "Customer Feedback"
+            ];
+
+            let filtered = [];
+            let index = -1;
+
+            function renderSuggestions(items) {
+                listEl.innerHTML = '';
+                if (!items.length) {
+                    suggestionsEl.hidden = true;
+                    input.setAttribute('aria-expanded', 'false');
+                    return;
+                }
+                const frag = document.createDocumentFragment();
+                items.forEach((text, i) => {
+                    const li = document.createElement('li');
+                    li.textContent = text;
+                    li.setAttribute('role','option');
+                    li.id = 'sugg-' + i;
+                    li.tabIndex = -1;
+                    li.addEventListener('mousedown', function(e){
+                        // use mousedown to avoid losing focus before click
+                        e.preventDefault();
+                        choose(i);
+                    });
+                    frag.appendChild(li);
+                });
+                listEl.appendChild(frag);
+                suggestionsEl.hidden = false;
+                input.setAttribute('aria-expanded', 'true');
+            }
+
+            function updateFilter() {
+                const q = input.value.trim().toLowerCase();
+                index = -1;
+                if (!q) {
+                    filtered = [];
+                } else {
+                    filtered = DATA.filter(s => s.toLowerCase().includes(q)).slice(0,8);
+                }
+                renderSuggestions(filtered);
+                clearBtn.classList.toggle('show', !!input.value);
+            }
+
+            function choose(i) {
+                if (filtered[i]) {
+                    input.value = filtered[i];
+                    hideSuggestions();
+                    input.focus();
+                }
+            }
+
+            function hideSuggestions() {
+                suggestionsEl.hidden = true;
+                input.setAttribute('aria-expanded', 'false');
+                index = -1;
+            }
+
+            input.addEventListener('input', updateFilter);
+
+            input.addEventListener('keydown', (e) => {
+                if (suggestionsEl.hidden) {
+                    if (e.key === 'ArrowDown' && filtered.length) {
+                        renderSuggestions(filtered);
+                        index = 0;
+                        highlight(index);
+                        e.preventDefault();
+                    }
+                    return;
+                }
+
+                switch(e.key) {
+                    case 'ArrowDown':
+                        if (filtered.length) {
+                            index = (index + 1) % filtered.length;
+                            highlight(index);
+                            e.preventDefault();
+                        }
+                        break;
+                    case 'ArrowUp':
+                        if (filtered.length) {
+                            index = (index - 1 + filtered.length) % filtered.length;
+                            highlight(index);
+                            e.preventDefault();
+                        }
+                        break;
+                    case 'Enter':
+                        if (index >= 0 && filtered[index]) {
+                            e.preventDefault();
+                            choose(index);
+                        }
+                        break;
+                    case 'Escape':
+                        hideSuggestions();
+                        break;
+                }
+            });
+
+            function highlight(i) {
+                Array.from(listEl.children).forEach((li, idx) => {
+                    li.setAttribute('aria-selected', String(idx === i));
+                    if (idx === i) {
+                        li.scrollIntoView({ block: 'nearest' });
+                    }
+                });
+                input.setAttribute('aria-activedescendant', i >= 0 ? ('sugg-' + i) : '');
+            }
+
+            clearBtn.addEventListener('click', () => {
+                input.value = '';
+                updateFilter();
+                input.focus();
+            });
+
+            // Close suggestions when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!form.contains(e.target)) hideSuggestions();
+            });
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const q = input.value.trim();
+                if (!q) return;
+                // Replace this with real search action
+                console.log('Search submitted:', q);
+                // Example: navigate to search results or call API
+                // location.href = '/search?q=' + encodeURIComponent(q);
+            });
+
+            // Initialize
+            updateFilter();
+
+        })();
+    </script>
+</body>
+</html></button>
