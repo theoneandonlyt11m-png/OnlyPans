@@ -51,9 +51,35 @@
         }
         .submit-btn:active { transform:translateY(1px); }
         .suggestions {
-            margin-top:8px; background:#fff; border-radius:8px; box-shadow:var(--shadow); overflow:hidden; max-height:220px; border:1px solid rgba(15,23,42,0.06);
+            margin-top:8px; 
+            background:#fff; 
+            border-radius:8px; 
+            box-shadow:var(--shadow); 
+            overflow:auto; 
+            max-height:220px; 
+            border:1px solid rgba(15,23,42,0.06);
+            position: absolute;
+            width: 100%;
+            z-index: 1000;
         }
-        .suggestions ul { list-style:none; margin:0; padding:0; }
+        .suggestions ul { 
+            list-style:none; 
+            margin:0; 
+            padding:0; 
+        }
+        .thumb {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .thumb.video {
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
         .suggestions li {
             padding:10px 12px; display:flex; gap:10px; align-items:center; cursor:pointer;
         }
@@ -136,7 +162,9 @@
             }
 
             function collectMedia() {
-                return [...document.querySelectorAll('img[src^="images/"], video[src^="Videos/"]')].map(el => {
+                const mediaElements = [...document.querySelectorAll('img[src^="images/"], video[src^="Videos/"]')];
+                console.log('Found media elements:', mediaElements);
+                return mediaElements.map(el => {
                     let src = el.src || el.currentSrc;
                     try {
                         src = new URL(src, location.href).href;
@@ -221,10 +249,12 @@
                 const q = input.value.trim().toLowerCase();
                 index = -1;
                 updateMediaCache();
+                console.log('Current MEDIA array:', MEDIA);
                 if (!q) {
                     filtered = [];
                 } else {
                     filtered = MEDIA.filter(m => m.searchable.includes(q)).slice(0,8);
+                    console.log('Filtered results:', filtered);
                 }
                 renderSuggestions(filtered);
                 clearBtn.classList.toggle('show', !!input.value);
