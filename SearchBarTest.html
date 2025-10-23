@@ -136,7 +136,7 @@
             }
 
             function collectMedia() {
-                return [...document.querySelectorAll('img, video')].map(el => {
+                return [...document.querySelectorAll('img[src^="images/"], video[src^="Videos/"]')].map(el => {
                     let src = el.src || el.currentSrc;
                     try {
                         src = new URL(src, location.href).href;
@@ -144,14 +144,14 @@
                         src = src;
                     }
                     const filename = (src.split('/').pop() || src).split('?')[0].split('#')[0];
-                    const nameNoExt = filename.replace(/\.[^/.]+$/, '').replace(/[-_]+/g, ' ');
-                    const alt = (el.getAttribute('alt') || '').trim();
+                    // Remove file extension (.jpg, .jpeg, .png, .mp4, etc)
+                    const nameNoExt = filename.replace(/\.[^/.]+$/, '');
                     return {
                         el,
                         src,
-                        filename,
-                        label: alt ? (alt + ' — ' + filename) : filename,
-                        searchable: (filename + ' ' + nameNoExt + ' ' + alt).toLowerCase(),
+                        filename: nameNoExt, // Use name without extension as the filename
+                        label: nameNoExt, // Show only the name without extension
+                        searchable: nameNoExt.toLowerCase(), // Search only by name without extension
                         type: el.tagName.toLowerCase()
                     };
                 }).filter(item => item.filename); // ignore elements without a filename
@@ -196,7 +196,7 @@
                     title.style.textOverflow = 'ellipsis';
                     const meta = document.createElement('div');
                     meta.className = 'muted';
-                    meta.textContent = obj.src.replace(location.origin, '');
+                    meta.textContent = obj.type === 'img' ? 'images folder' : 'Videos folder';
                     text.appendChild(title);
                     text.appendChild(meta);
                     li.appendChild(text);
