@@ -64,21 +64,44 @@
         const form = document.getElementById('searchForm');
 
         function collectMedia() {
-            // Find images in images/ and videos in Videos/ on this page
-            const mediaElements = [...document.querySelectorAll('img[src^="images/"], video[src^="Videos/"]')];
-            return mediaElements.map(el => {
-                const src = el.src || el.currentSrc || '';
+            // Collect images whose src starts with images/ and video sources in Videos/
+            const imgs = [...document.querySelectorAll('img[src^="images/"]')];
+            // Select <source> elements inside <video> (or standalone) that point to Videos/
+            const videoSources = [...document.querySelectorAll('video source[src^="Videos/"], source[src^="Videos/"]')];
+
+            const items = [];
+
+            imgs.forEach(el => {
+                const src = el.getAttribute('src') || el.src || '';
                 const filenameFull = (src.split('/').pop() || src).split('?')[0].split('#')[0] || '';
                 const nameNoExt = filenameFull.replace(/\.[^/.]+$/, '');
-                return {
+                items.push({
                     el,
                     src,
                     filename: nameNoExt,
                     label: nameNoExt,
                     searchable: nameNoExt.toLowerCase(),
-                    type: el.tagName.toLowerCase()
-                };
-            }).filter(item => item.filename);
+                    type: 'img'
+                });
+            });
+
+            videoSources.forEach(srcEl => {
+                const src = srcEl.getAttribute('src') || srcEl.src || '';
+                const filenameFull = (src.split('/').pop() || src).split('?')[0].split('#')[0] || '';
+                const nameNoExt = filenameFull.replace(/\.[^/.]+$/, '');
+                // use the parent <video> element for scrolling/highlighting if available
+                const parentVideo = srcEl.closest && srcEl.closest('video') ? srcEl.closest('video') : srcEl.parentElement;
+                items.push({
+                    el: parentVideo || srcEl,
+                    src,
+                    filename: nameNoExt,
+                    label: nameNoExt,
+                    searchable: nameNoExt.toLowerCase(),
+                    type: 'video'
+                });
+            });
+
+            return items.filter(item => item.filename);
         }
 
         let MEDIA = collectMedia();
