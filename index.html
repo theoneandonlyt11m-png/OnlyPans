@@ -147,6 +147,19 @@
             const item = filtered[i]; if(!item) return;
             input.value = item.filename;
             suggestionsEl.hidden = true;
+
+            // If the media element is wrapped by a link, follow that link (open associated page)
+            const anchor = item.el && item.el.closest ? item.el.closest('a[href]') : null;
+            if (anchor) {
+                // show a brief highlight and then navigate to the linked page
+                try{ item.el.scrollIntoView({behavior:'smooth', block:'center'}); }catch(e){ item.el.scrollIntoView(); }
+                clearHighlights();
+                item.el.classList.add('media-highlight');
+                // navigate shortly after to allow the highlight to be seen
+                setTimeout(() => { window.location.href = anchor.href; }, 150);
+                return;
+            }
+
             try{ item.el.scrollIntoView({behavior:'smooth', block:'center'}); }catch(e){ item.el.scrollIntoView(); }
             clearHighlights();
             item.el.classList.add('media-highlight');
