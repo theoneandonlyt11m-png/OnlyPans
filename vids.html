@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <style>
+        .CenteredText {
+            text-align: center;
+    }
+        table,tr,th,td{
+            border:black 1px solid;
+            border-collapse: collapse;
+    }
+
+    .btn {
+        display: inline-block;
+        padding: 10px 16px;
+        border-radius: 4px;
+        background: #007bff;
+        color: white;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        font-family: sans-serif;
+        font-size: 14px;
+      }
+      .btn:focus { outline: 2px solid #0056b3; }
+        /* Search bar styles (minimal, scoped) */
+        .search-wrapper { position: relative; display: flex; justify-content: center; }
+        .search-card { background:#fff; padding:12px; border-radius:10px; box-shadow:0 6px 18px rgba(15,23,42,0.08); width:min(720px,96%); max-width:720px; margin:12px auto; }
+        .search { display:flex; gap:10px; align-items:center; }
+        .input-wrap { display:flex; align-items:center; background:#f3f4f6; padding:8px 10px; border-radius:8px; gap:8px; border:1px solid transparent; }
+        input[type="search"]{ border:0; outline:0; background:transparent; font-size:16px; flex:1; }
+        .suggestions { margin-top:8px; background:#fff; border-radius:8px; box-shadow:0 6px 18px rgba(15,23,42,0.08); overflow:auto; max-height:220px; border:1px solid rgba(15,23,42,0.06); position:absolute; width:100%; z-index:1000; }
+        .suggestions ul{ list-style:none; margin:0; padding:0; }
+        .suggestions li{ padding:8px 10px; display:flex; gap:10px; align-items:center; cursor:pointer; }
+        .thumb{ width:40px; height:40px; object-fit:cover; border-radius:4px; }
+        .muted{ color:#6b7280; font-size:13px; }
+        .media-highlight{ outline: 3px solid rgba(11,95,255,0.25); transition: outline 0.2s; }
+    </style>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OnlyPans</title>
+</head>
+<body>
+    <h1 class="CenteredText">OnlyPans</h1>    
+
+    <p>
+    <a class="btn" href="index.html">Main Page</a>
+    <a class="btn" href="phots.html">Images</a>
+  </p>
+
+    <div class="search-wrapper">
+        <div class="search-card" aria-labelledby="searchTitle">
+            <h2 id="searchTitle" style="margin:0 0 8px;font-size:16px">Search images & videos</h2>
+            <form class="search" role="search" id="searchForm" autocomplete="off">
+                <div style="flex:1; position:relative">
+                    <div class="input-wrap">
+                        <input id="searchInput" type="search" name="q" placeholder="Search media by filename (no extension)..." aria-autocomplete="list" aria-controls="suggestList" aria-expanded="false" />
+                    </div>
+                    <div id="suggestions" class="suggestions" hidden>
+                        <ul id="suggestList" role="listbox" tabindex="-1"></ul>
+                    </div>
+                </div>
+                <button type="submit" class="submit-btn">Go</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Search script: collects images/videos on this page and provides suggestions -->
+    <script>
+    (function(){
+        const input = document.getElementById('searchInput');
+        const suggestionsEl = document.getElementById('suggestions');
+        const listEl = document.getElementById('suggestList');
+        const form = document.getElementById('searchForm');
+
+        function collectMedia() {
+            // Collect images whose src starts with images/ and video sources in Videos/
+            const imgs = [...document.querySelectorAll('img[src^="images/"]')];
+            // Select <source> elements inside <video> (or standalone) that point to Videos/
+            const videoSources = [...document.querySelectorAll('video source[src^="Videos/"], source[src^="Videos/"]')];
+
+            const items = [];
+
+            imgs.forEach(el => {
+                const src = el.getAttribute('src') || el.src || '';
+                const filenameFull = (src.split('/').pop() || src).split('?')[0].split('#')[0] || '';
+                const nameNoExt = filenameFull.replace(/\.[^/.]+$/, '');
+                items.push({
+                    el,
+                    src,
+                    filename: nameNoExt,
+                    label: nameNoExt,
+                    searchable: nameNoExt.toLowerCase(),
+                    type: 'img'
+                });
+            });
+
+            videoSources.forEach(srcEl => {
+                const src = srcEl.getAttribute('src') || srcEl.src || '';
+                const filenameFull = (src.split('/').pop() || src).split('?')[0].split('#')[0] || '';
+                const nameNoExt = filenameFull.replace(/\.[^/.]+$/, '');
+                // use the parent <video> element for scrolling/highlighting if available
+                const parentVideo = srcEl.closest && srcEl.closest('video') ? srcEl.closest('video') : srcEl.parentElement;
+                items.push({
+                    el: parentVideo || srcEl,
+                    src,
+                    filename: nameNoExt,
+                    label: nameNoExt,
+                    searchable: nameNoExt.toLowerCase(),
+                    type: 'video'
+                });
+            });
+
+            return items.filter(item => item.filename);
+        }
+
+        let MEDIA = collectMedia();
+        let filtered = [];
+        let index = -1;
+
+        function renderSuggestions(items){
+            listEl.innerHTML = '';
+            if(!items.length){
+                suggestionsEl.hidden = true;
+                input.setAttribute('aria-expanded','false');
+                return;
+            }
+            const frag = document.createDocumentFragment();
+            items.forEach((obj,i)=>{
+                const li = document.createElement('li');
+                li.setAttribute('role','option');
+                li.id = 'sugg-' + i;
+                li.tabIndex = -1;
+
+                if(obj.type === 'img'){
+                    const thumb = document.createElement('img');
+                    thumb.src = obj.src;
+                    thumb.className = 'thumb';
+                    thumb.alt = '';
+                    li.appendChild(thumb);
+                } else {
+                    const div = document.createElement('div');
+                    div.className = 'thumb video';
+                    div.textContent = 'VIDEO';
+                    li.appendChild(div);
+                }
+
+                const text = document.createElement('div');
+                const title = document.createElement('div');
+                title.textContent = obj.label;
+                const meta = document.createElement('div');
+                meta.className = 'muted';
+                meta.textContent = obj.type === 'img' ? 'images folder' : 'Videos folder';
+                text.appendChild(title);
+                text.appendChild(meta);
+                li.appendChild(text);
+
+                li.addEventListener('mousedown', function(e){ e.preventDefault(); choose(i); });
+                frag.appendChild(li);
+            });
+            listEl.appendChild(frag);
+            suggestionsEl.hidden = false;
+            input.setAttribute('aria-expanded','true');
+        }
+
+        function updateMediaCache(){ MEDIA = collectMedia(); }
+
+        function updateFilter(){
+            const q = input.value.trim().toLowerCase();
+            index = -1;
+            updateMediaCache();
+            if(!q) filtered = [];
+            else filtered = MEDIA.filter(m => m.searchable.includes(q)).slice(0,8);
+            renderSuggestions(filtered);
+        }
+
+        function clearHighlights(){ document.querySelectorAll('.media-highlight').forEach(el=>el.classList.remove('media-highlight')); }
+
+        function choose(i){
+            const item = filtered[i]; if(!item) return;
+            input.value = item.filename;
+            suggestionsEl.hidden = true;
+
+            // If the media element is wrapped by a link, follow that link (open associated page)
+            const anchor = item.el && item.el.closest ? item.el.closest('a[href]') : null;
+            if (anchor) {
+                // show a brief highlight and then navigate to the linked page
+                try{ item.el.scrollIntoView({behavior:'smooth', block:'center'}); }catch(e){ item.el.scrollIntoView(); }
+                clearHighlights();
+                item.el.classList.add('media-highlight');
+                // navigate shortly after to allow the highlight to be seen
+                setTimeout(() => { window.location.href = anchor.href; }, 150);
+                return;
+            }
+
+            try{ item.el.scrollIntoView({behavior:'smooth', block:'center'}); }catch(e){ item.el.scrollIntoView(); }
+            clearHighlights();
+            item.el.classList.add('media-highlight');
+            if(item.type === 'video'){ try{ item.el.play().catch(()=>{}); }catch(e){}
+            }
+            setTimeout(()=>{ item.el.classList.remove('media-highlight'); }, 3000);
+            input.focus();
+        }
+
+        input.addEventListener('input', updateFilter);
+        input.addEventListener('keydown', (e)=>{
+            if(suggestionsEl.hidden){ if(e.key === 'ArrowDown' && filtered.length){ renderSuggestions(filtered); index = 0; highlight(index); e.preventDefault(); } return; }
+            switch(e.key){
+                case 'ArrowDown': if(filtered.length){ index = (index+1) % filtered.length; highlight(index); e.preventDefault(); } break;
+                case 'ArrowUp': if(filtered.length){ index = (index-1+filtered.length) % filtered.length; highlight(index); e.preventDefault(); } break;
+                case 'Enter': if(index>=0 && filtered[index]){ e.preventDefault(); choose(index); } break;
+                case 'Escape': suggestionsEl.hidden = true; break;
+            }
+        });
+
+        function highlight(i){ Array.from(listEl.children).forEach((li,idx)=>{ li.setAttribute('aria-selected', String(idx===i)); if(idx===i) li.scrollIntoView({block:'nearest'}); }); input.setAttribute('aria-activedescendant', i>=0?('sugg-'+i):''); }
+
+        form.addEventListener('submit', (e)=>{ e.preventDefault(); const q = input.value.trim(); if(!q) return; updateMediaCache(); const exact = MEDIA.find(m=>m.filename.toLowerCase()===q.toLowerCase()); if(exact){ filtered=[exact]; choose(0); return; } console.log('Search submitted:', q); });
+
+        // init
+        updateFilter();
+        window.__refreshMediaSearch = updateMediaCache;
+    })();
+    </script>
+    <h2 class="CenteredText">Videos</h2>
+        <video controls>
+            <source src="Videos/PanOiledVDSmaller.mp4" type="video/mp4">
+        </video>
+        <video controls>
+            <source src="Videos/Spoon in pan.mp4" type="video/mp4">
+        </video>
+    <h2 class="CenteredText">AI Videos</h2>
+        <video controls>
+            <source src="Videos/BBP.mp4" type="video/mp4">
+        </video>
+
+
+</body>
+</html>
